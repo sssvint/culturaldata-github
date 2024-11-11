@@ -1,0 +1,171 @@
+---
+title: "Portfolio 2"
+author: "Samuel Vinter"
+date: "2024-10-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Portfolio Assignment 2 in Cultural Data Science
+
+------------------------------------------------------------------------
+
+## Part 1
+
+------------------------------------------------------------------------
+
+> Load the 'divorce_margarine' dataset from the 'dslabs' package. Investigate the correlation between margarine consumption and divorce rates in Maine. Would an increase in the preference for margarine lead to skyrocketing divorce rates?
+
+```{r}
+library(pacman)
+pacman::p_load(dplyr, dslabs, ggplot2)
+```
+
+```{r}
+data(divorce_margarine)
+divmar <- divorce_margarine
+```
+
+```{r}
+ggplot(divmar, aes(x = divorce_rate_maine, y = margarine_consumption_per_capita)) +
+  geom_point() +
+  ggtitle("Margarine consumption vs divorce rates in Maine") +
+  xlab("Divorce rate") + ylab("Margarine consumption") +
+  theme_minimal()
+
+ggplot(divmar, aes(x = year, y = divorce_rate_maine)) +
+  geom_point() +
+  ggtitle("Divorce rates in Maine over time") +
+  scale_x_continuous(breaks = seq(2000, 2009, 1)) +
+  xlab("Year") + ylab("Divorce rate") +
+  theme_minimal()
+
+ggplot(divmar, aes(x = year, y = margarine_consumption_per_capita)) +
+  geom_point() +
+  ggtitle("Margarine consumption in Maine over time")+
+  scale_x_continuous(breaks = seq(2000, 2009, 1)) +
+  xlab("Year") + ylab("Margarine consumption") +
+  theme_minimal()
+```
+
+```{r}
+cor.test(divmar$divorce_rate_maine, divmar$margarine_consumption_per_capita)
+```
+
+```{r}
+summary(lm(divorce_rate_maine ~ margarine_consumption_per_capita, data = divmar))
+```
+
+It seems that the divorce rate, as well as the rate of margarine consumption, are HIGHLY correlated, r(8) = 0.993, p < 0.001. Additionally, the linear model suggests that for every one unit increase of margarine consumption, the divorce rate increases by roughly 0.2. As such, based on this data alone, an increase in margarine consumption would absolutely also see an increase in divorce rates; however, it is very unlikely that margarine consumption alone (if at all) is the cause of divorce rates. If we inspect the data for margarine consumption and divorce rates isolated from each other, by year, we can see that the rates follow almost exactly the same trends - generally going downwards until 2005, then a slight increase immediately followed by a decrease. It's much more likely that a third variable is influencing both margarine consumption and divorce rates.
+
+------------------------------------------------------------------------
+
+## Part 2
+
+------------------------------------------------------------------------
+
+> Load the ‘GSSvocab’ dataset from the ‘car’ package. This dataset contains people’s scores on
+an English vocabulary test and includes demographic information.
+
+```{r}
+library(car)
+data(GSSvocab)
+gss <- GSSvocab
+```
+
+> Filter for the year 1978 and remove rows with missing values (the function *na.exclude()* is one way to do this—check out the documentation!).
+
+```{r}
+gss <- gss %>%
+  filter(year == 1978) %>%
+  na.exclude()
+```
+
+> Is a person’s score on the vocabulary test (‘vocab’) significantly impacted by their level of
+education (‘educ’)? Visualize the relationship in a plot and build a model. Briefly explain the
+results.
+
+```{r}
+ggplot(gss, aes(x = educ, y = vocab)) +
+  geom_point(position=position_jitter(width=.1)) +
+  ggtitle("Vocabulary test scores vs years of education") +
+  xlab("Years of education") + ylab("Vocabulary test score") +
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, 10, 1)) +
+  scale_x_continuous(breaks = seq(0, 20, 2))
+```
+
+```{r}
+cor.test(gss$educ, gss$vocab)
+```
+
+```{r}
+m1 <- lm(vocab ~ educ, data = gss)
+summary(m1)
+```
+
+> Whether a person is the native of an English-speaking country (‘nativeBorn’) could potentially have an impact on the size of their vocabulary. Visualize the relationship and add the predictor to the model. Briefly explain the results.
+
+```{r}
+ggplot(gss, aes(x = nativeBorn, y = vocab, fill = nativeBorn)) +
+  geom_violin() +
+  ggtitle("Vocabulary test scores vs native born") +
+  xlab("Native born") + ylab("Vocabulary test score") +
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, 10, 1))
+```
+
+Does a person’s level of education depend on whether they are a native of the country? Visualize the relationship. Do you think it makes sense to add the relationship as an interaction term? Try creating the model and briefly explain the results.
+
+```{r}
+m2 <- lm(vocab ~ educ + nativeBorn, data = gss)
+summary(m2)
+```
+
+```{r}
+count(gss, nativeBorn)
+```
+
+Non-native test takers seem to have very evenly distributed scores (based on the violin plot), while the native test takers have "spikier" data - this could possibly be due to there being a lot more native speakers in the data than non-native speakers? However, while for non-native speakers the distribution of scores is generally 'flat' (with 0 being the least attained score and 2-3 being the most attained score, but not by a lot), for the native speakers the scores are more normally distributed (if you don't account for the spikes in the plot), with 6 being the most commonly received score. (and just to add, all of the scores are whole numbers, so it is not possible that anyone received a .5 of a score (which could impact the shape of the plot).) \n
+In the model with the additional predictor of `nativeBorn`, the education level is still the most significant predictor, p < 0.001, however `nativeBornyes` also has a rather significant impact, p = 0.0015. The model suggests that just being a native speaker increases the vocabulary test score by 0.65.
+
+> Does a person’s level of education depend on whether they are a native of the country? Visualize the relationship. Do you think it makes sense to add the relationship as an interaction term? Try creating the model and briefly explain the results.
+
+```{r}
+ggplot(gss, aes(x = nativeBorn, y = educ, fill = nativeBorn)) +
+  geom_violin() +
+  ggtitle("Years of education vs native born") +
+  xlab("Native born") + ylab("Years of education") +
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, 20, 2))
+```
+Based purely on the visualizations, the level of education doesn't seem entirely different based on if the participant was a natively born person or not; if we keep in mind that there were a lot fewer natively born people in the data, we can see that the general trends in the plot are about the same - most people in either group had 12 years of education, there is a slight spike in having 8 years of education, and while quite a few people also had 16 years of education, it drops off after that (as in not that many people in either group with >16 years).
+
+```{r}
+ggplot(data = gss, aes(x = educ, y = vocab, color = nativeBorn)) +
+  geom_point(position=position_jitter(width=.1)) +
+  ggtitle("Vocabulary test scores vs years of education, colored by native born") +
+  xlab("Years of education") + ylab("Vocabulary test score") +
+  theme_minimal() +
+  scale_y_continuous(breaks = seq(0, 10, 1)) +
+  scale_x_continuous(breaks = seq(0, 20, 2))
+```
+
+In this plot we can observe that the general trend for `vocab` and `educ` is the same for non-natively born people as well (positive correlation).
+
+```{r}
+m3 <- lm(vocab ~ educ * nativeBorn, data = gss)
+summary(m3)
+```
+In this model, years of education is the only statistically significant predictor, p < 0.001. The other predictors aren't statistically significant at all (p > 0.1). Overall, unsure if it's a very necessary relationship here.
+
+> Which model performs best? 
+
+```{r}
+AIC(m1, m2, m3)
+```
+
+Based on the AIC, the second model, `vocab ~ educ + nativeBorn` performs the best, having the lowest AIC, as well as the highest R2. However, the difference in AIC scores or R2s isn't very large, so it's not very significantly better, it simply explains the variance somewhat better than the others, while also not being too overcomplicated.
